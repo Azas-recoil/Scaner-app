@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Escaneo QR Colegio</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body { font-family: Arial; text-align: center; margin-top: 20px; }
+    #reader { margin: auto; width: 300px; }
+    #mensaje { margin-top: 15px; font-weight: bold; color: green; }
+    button { margin: 5px; padding: 10px 15px; }
+  </style>
+</head>
+<body>
+
+<h2>Escaneo QR Colegio</h2>
+
+<button onclick="setTipo('Entrada')">Entrada</button>
+<button onclick="setTipo('Salida')">Salida</button>
+
+<div id="reader"></div>
+<div id="mensaje"></div>
+
+<script>
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxMJOxikfNm3Eif14m40DZZbYXO0VVHxZ1A0Vv9YokTrmiDR8D8t2vC_zyBi1E2f06bow/exec";
+  let tipoRegistro = "Entrada";
+  let bloqueado = false;
+  let ultimoRegistro = { qr: null, tipo: null };
+
+  function setTipo(tipo) {
+    tipoRegistro = tipo;
+    mostrar("Modo: " + tipo);
+  }
+
+  function mostrar(txt) {
+    document.getElementById("mensaje").innerText = txt;
+  }
+
+  function registrar(qr) {
+    mostrar("Registrando...");
+    return fetch(`${WEB_APP_URL}?qr=${encodeURIComponent(qr)}&tipo=${tipoRegistro}&dispositivo=web`)
+      .then(r => r.text())
+      .then(txt => {
+        mostrar(txt); // Mostramos mensaje con nombre + tipo + estado correo
+        ultimoRegistro = { qr, tipo: tipoRegistro };
+      })
+      .catch(err => mostrar("Error: " + err));
+  }
+
+  function onScanSuccess(qr) {
+    // Bloquea si es el mismo QR y tipo, evita llamadas múltiples
+    if (bloqueado || (qr === ultimoRegistro.qr && tipoRegistro === ultimoRegistro.tipo)) return;
+
+    bloqueado = true;
+    registrar(qr).finally(() => {
+      // Espera 1.5 segundos antes de permitir otro escaneo del mismo QR
+      setTimeout(() => bloqueado = false, 1500);
+    });
+  }
+
+  const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+  scanner.render(onScanSuccess);
+</script>
+
+</body>
+</html>
