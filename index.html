@@ -2,60 +2,59 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Escaneo QR Colegio</title>
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <title>Escáner QR</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    body { font-family: Arial; text-align: center; margin-top: 20px; }
-    #reader { margin: auto; width: 300px; }
-    #mensaje { margin-top: 15px; font-weight: bold; color: green; }
-    button { margin: 5px; padding: 10px 15px; }
+    body { font-family: Arial; text-align: center; }
+    #reader { width: 300px; margin: auto; }
+    #msg { margin-top: 15px; font-weight: bold; }
+    button { padding: 10px; margin: 5px; }
   </style>
 </head>
 <body>
 
-<h2>Escaneo QR Colegio</h2>
+<h3>Escáner QR</h3>
 
 <button onclick="setTipo('Entrada')">Entrada</button>
 <button onclick="setTipo('Salida')">Salida</button>
 
 <div id="reader"></div>
-<div id="mensaje"></div>
+<div id="msg"></div>
 
 <script>
-  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxMJOxikfNm3Eif14m40DZZbYXO0VVHxZ1A0Vv9YokTrmiDR8D8t2vC_zyBi1E2f06bow/exec";
-  let tipoRegistro = "Entrada";
-  let bloqueado = false;
-  let ultimoRegistro = { qr: null, tipo: null };
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby3kjRJ671bEF7Z9jWdOGu_x3ORq4UfqEmO_CHXy52mZmYErXfcr-3sfXrlwxjtMYyVRw/exec";
 
-  function setTipo(tipo) {
-    tipoRegistro = tipo;
-    mostrar("Modo: " + tipo);
+  let tipo = "Entrada";
+  let lock = false;
+  let lastQR = "";
+
+  function setTipo(t) {
+    tipo = t;
+    show("Modo: " + t);
   }
 
-  function mostrar(txt) {
-    document.getElementById("mensaje").innerText = txt;
+  function show(texto) {
+    document.getElementById("msg").innerText = texto;
   }
 
-  function registrar(qr) {
-    mostrar("Registrando...");
-    return fetch(`${WEB_APP_URL}?qr=${encodeURIComponent(qr)}&tipo=${tipoRegistro}&dispositivo=web`)
-      .then(r => r.text())
-      .then(txt => {
-        mostrar(txt); // Mostramos mensaje con nombre + tipo + estado correo
-        ultimoRegistro = { qr, tipo: tipoRegistro };
-      })
-      .catch(err => mostrar("Error: " + err));
+  function send(qr) {
+    fetch(`${WEB_APP_URL}?qr=${encodeURIComponent(qr)}&tipo=${tipo}&dispositivo=web`)
+      .catch(() => {}); // ignoramos fetch
   }
 
   function onScanSuccess(qr) {
-    // Bloquea si es el mismo QR y tipo, evita llamadas múltiples
-    if (bloqueado || (qr === ultimoRegistro.qr && tipoRegistro === ultimoRegistro.tipo)) return;
+    if (lock || qr === lastQR) return;
 
-    bloqueado = true;
-    registrar(qr).finally(() => {
-      // Espera 1.5 segundos antes de permitir otro escaneo del mismo QR
-      setTimeout(() => bloqueado = false, 1500);
-    });
+    lock = true;
+    lastQR = qr;
+
+    show("Procesando...");
+    send(qr);
+
+    setTimeout(() => {
+      lock = false;
+      lastQR = "";
+    }, 1500);
   }
 
   const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
