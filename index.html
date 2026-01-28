@@ -6,48 +6,41 @@
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background: #f4f6f8;
-    }
-    #reader {
-      width: 300px;
-      margin: auto;
-    }
-    #estado {
-      margin-top: 15px;
-      font-size: 18px;
-      font-weight: bold;
-    }
-    .ok { color: green; }
-    .error { color: red; }
+    body { font-family: Arial; text-align: center; background: #f4f6f8; }
+    #reader { width: 300px; margin: auto; }
+    #estado { margin-top: 15px; font-size: 18px; font-weight: bold; }
+    .ok { color: green; } .error { color: red; }
+    button { margin: 5px; padding: 10px 20px; font-size: 16px; }
   </style>
 </head>
 <body>
 
 <h2>Control de Acceso</h2>
 
+<div>
+  <button id="btnEntrada">Modo Entrada</button>
+  <button id="btnSalida">Modo Salida</button>
+</div>
+
 <div id="reader"></div>
 <div id="estado">Escanee el QR</div>
 
 <script>
-  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbysbqsaZxbFc3upPXvNDrpjySdOX1D4I_POyn_5xgfr81descg7-KLBntaQ6GrFLYA7Dg/exec";
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzL_d242SRUNen791nxvZpCDdOxXZ1zSNm4EECZjLLYLxDeN7c8C1NyyXmlwZ0g2Oo9MQ/exec";
 
-  // 🔒 Bloqueo por QR individual
-  let bloqueosQR = {}; // { qr: timestamp }
+  let modoActual = "Entrada"; // default
+  const bloqueosQR = {}; // { "QR-modo": timestamp }
+
+  // 🔘 Botones de modo
+  document.getElementById("btnEntrada").onclick = () => { modoActual = "Entrada"; mostrar("Modo Entrada"); };
+  document.getElementById("btnSalida").onclick = () => { modoActual = "Salida"; mostrar("Modo Salida"); };
 
   function beep() {
     const ctx = new AudioContext();
     const osc = ctx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.value = 800;
-    osc.connect(ctx.destination);
-    osc.start();
-    setTimeout(() => {
-      osc.stop();
-      ctx.close();
-    }, 150);
+    osc.type = "sine"; osc.frequency.value = 800;
+    osc.connect(ctx.destination); osc.start();
+    setTimeout(() => { osc.stop(); ctx.close(); }, 150);
   }
 
   function mostrar(msg, ok = true) {
@@ -58,14 +51,14 @@
 
   function onScanSuccess(qr) {
     const ahora = Date.now();
+    const key = qr + "-" + modoActual;
 
-    // 🔒 Bloqueo de 3 segundos por QR
-    if (bloqueosQR[qr] && ahora - bloqueosQR[qr] < 3000) return;
-    bloqueosQR[qr] = ahora;
+    if (bloqueosQR[key] && ahora - bloqueosQR[key] < 3000) return;
+    bloqueosQR[key] = ahora;
 
     mostrar("Procesando...");
 
-    fetch(`${WEB_APP_URL}?qr=${encodeURIComponent(qr)}&dispositivo=web`)
+    fetch(`${WEB_APP_URL}?qr=${encodeURIComponent(qr)}&dispositivo=web&modo=${modoActual}`)
       .then(r => r.json())
       .then(data => {
         if (data.ok) {
@@ -75,21 +68,12 @@
           mostrar(data.mensaje || "Error", false);
         }
       })
-      .catch(() => {
-        mostrar("Error de conexión", false);
-      });
+      .catch(() => { mostrar("Error de conexión", false); });
 
-    // 🔄 Limpiar bloqueo después de 3 segundos
-    setTimeout(() => {
-      delete bloqueosQR[qr];
-      mostrar("Escanee el QR");
-    }, 3000);
+    setTimeout(() => { delete bloqueosQR[key]; mostrar("Escanee el QR"); }, 3000);
   }
 
-  const scanner = new Html5QrcodeScanner(
-    "reader",
-    { fps: 10, qrbox: 250 }
-  );
+  const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
   scanner.render(onScanSuccess);
 </script>
 
