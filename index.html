@@ -34,8 +34,8 @@
 <script>
   const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbysbqsaZxbFc3upPXvNDrpjySdOX1D4I_POyn_5xgfr81descg7-KLBntaQ6GrFLYA7Dg/exec";
 
-  let bloqueado = false;
-  let ultimoQR = "";
+  // 🔒 Bloqueo por QR individual
+  let bloqueosQR = {}; // { qr: timestamp }
 
   function beep() {
     const ctx = new AudioContext();
@@ -57,10 +57,12 @@
   }
 
   function onScanSuccess(qr) {
-    if (bloqueado || qr === ultimoQR) return;
+    const ahora = Date.now();
 
-    bloqueado = true;
-    ultimoQR = qr;
+    // 🔒 Bloqueo de 3 segundos por QR
+    if (bloqueosQR[qr] && ahora - bloqueosQR[qr] < 3000) return;
+    bloqueosQR[qr] = ahora;
+
     mostrar("Procesando...");
 
     fetch(`${WEB_APP_URL}?qr=${encodeURIComponent(qr)}&dispositivo=web`)
@@ -77,10 +79,9 @@
         mostrar("Error de conexión", false);
       });
 
-    // 🔒 BLOQUEO DE 3 SEGUNDOS
+    // 🔄 Limpiar bloqueo después de 3 segundos
     setTimeout(() => {
-      bloqueado = false;
-      ultimoQR = "";
+      delete bloqueosQR[qr];
       mostrar("Escanee el QR");
     }, 3000);
   }
@@ -94,6 +95,3 @@
 
 </body>
 </html>
-
-
-
