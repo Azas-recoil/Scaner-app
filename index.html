@@ -8,38 +8,23 @@
     body { font-family: Arial; text-align: center; }
     #reader { width: 300px; margin: auto; }
     #msg { margin-top: 15px; font-weight: bold; }
-    button { padding: 10px; margin: 5px; }
   </style>
 </head>
 <body>
 
 <h3>Escáner QR</h3>
 
-<button onclick="setTipo('Entrada')">Entrada</button>
-<button onclick="setTipo('Salida')">Salida</button>
-
 <div id="reader"></div>
-<div id="msg"></div>
+<div id="msg">Escanee el QR</div>
 
 <script>
-  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxpMSPyyBqTrlaShs6B4MbwSjCYAnvvLP9JaEJgCGTMGsvn2R8jpUwzdHgyYyDlCcJESg/exec";
+  const WEB_APP_URL = "PEGA_AQUI_TU_URL_EXEC";
 
-  let tipo = "Entrada";
   let lock = false;
   let lastQR = "";
 
-  function setTipo(t) {
-    tipo = t;
-    show("Modo: " + t);
-  }
-
-  function show(texto) {
-    document.getElementById("msg").innerText = texto;
-  }
-
-  function send(qr) {
-    fetch(`${WEB_APP_URL}?qr=${encodeURIComponent(qr)}&tipo=${tipo}&dispositivo=web`)
-      .catch(() => {}); // ignoramos fetch
+  function mostrar(msg) {
+    document.getElementById("msg").innerText = msg;
   }
 
   function onScanSuccess(qr) {
@@ -48,20 +33,24 @@
     lock = true;
     lastQR = qr;
 
-    show("Procesando...");
-    send(qr);
+    mostrar("Procesando...");
+
+    fetch(`${WEB_APP_URL}?qr=${encodeURIComponent(qr)}&dispositivo=web`)
+      .catch(() => {});
 
     setTimeout(() => {
       lock = false;
       lastQR = "";
+      mostrar("Escanee el QR");
     }, 1500);
   }
 
-  const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+  const scanner = new Html5QrcodeScanner(
+    "reader",
+    { fps: 10, qrbox: 250 }
+  );
   scanner.render(onScanSuccess);
 </script>
 
 </body>
 </html>
-
-
