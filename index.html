@@ -4,45 +4,85 @@
   <meta charset="UTF-8">
   <title>Escáner QR</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
+
   <style>
-    body { font-family: Arial; text-align: center; }
-    #reader { width: 300px; margin: auto; }
-    #msg { margin-top: 15px; font-weight: bold; }
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f4f6f8;
+    }
+    #reader {
+      width: 300px;
+      margin: auto;
+    }
+    #estado {
+      margin-top: 15px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .ok { color: green; }
+    .error { color: red; }
   </style>
 </head>
 <body>
 
-<h3>Escáner QR</h3>
+<h2>Control de Acceso</h2>
 
 <div id="reader"></div>
-<div id="msg">Escanee el QR</div>
+<div id="estado">Escanee el QR</div>
 
 <script>
-  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx2Z-N0udXddP4-A_wuetiCcFxqqkkAvF5VuPuboQ-X9vJQrxo77KWSndpvtMGEBmSjHA/exec";
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwKic96QGF7ivUXtpA2E-wF_-zj7MHRv-NcPA4ethdF07qJ3MRZJpj37-VKQ5J60ffQIA/exec";
 
-  let lock = false;
-  let lastQR = "";
+  let bloqueado = false;
+  let ultimoQR = "";
 
-  function mostrar(msg) {
-    document.getElementById("msg").innerText = msg;
+  function beep() {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = 800;
+    osc.connect(ctx.destination);
+    osc.start();
+    setTimeout(() => {
+      osc.stop();
+      ctx.close();
+    }, 150);
+  }
+
+  function mostrar(msg, ok = true) {
+    const el = document.getElementById("estado");
+    el.textContent = msg;
+    el.className = ok ? "ok" : "error";
   }
 
   function onScanSuccess(qr) {
-    if (lock || qr === lastQR) return;
+    if (bloqueado || qr === ultimoQR) return;
 
-    lock = true;
-    lastQR = qr;
-
+    bloqueado = true;
+    ultimoQR = qr;
     mostrar("Procesando...");
 
     fetch(`${WEB_APP_URL}?qr=${encodeURIComponent(qr)}&dispositivo=web`)
-      .catch(() => {});
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok) {
+          beep();
+          mostrar(`${data.nombre} — ${data.tipo}`);
+        } else {
+          mostrar(data.mensaje || "Error", false);
+        }
+      })
+      .catch(() => {
+        mostrar("Error de conexión", false);
+      });
 
+    // 🔒 BLOQUEO DE 3 SEGUNDOS
     setTimeout(() => {
-      lock = false;
-      lastQR = "";
+      bloqueado = false;
+      ultimoQR = "";
       mostrar("Escanee el QR");
-    }, 1500);
+    }, 3000);
   }
 
   const scanner = new Html5QrcodeScanner(
@@ -54,5 +94,3 @@
 
 </body>
 </html>
-
-
